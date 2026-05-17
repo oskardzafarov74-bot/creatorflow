@@ -14,12 +14,13 @@ from openai import OpenAI
 # TOKENS
 # =====================================
 
-BOT_TOKEN = "PASTE_BOT_TOKEN"
+import os
 
-OPENAI_API_KEY = "PASTE_OPENAI_API_KEY"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-CRYPTO_PAY_API_TOKEN = "PASTE_CRYPTOBOT_TOKEN"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+CRYPTO_PAY_API_TOKEN = os.getenv("CRYPTO_PAY_API_TOKEN")
 # =====================================
 # OPENAI
 # =====================================
