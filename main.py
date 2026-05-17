@@ -1,195 +1,118 @@
+import os
 import requests
 
-from aiogram import Bot
-from aiogram import Dispatcher
-from aiogram import executor
-from aiogram import types
-
-from aiogram.types import InlineKeyboardMarkup
-from aiogram.types import InlineKeyboardButton
+from aiogram import Bot, Dispatcher, executor, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 from openai import OpenAI
 
-# =====================================
-# TOKENS
-# =====================================
-
-import os
+# =========================
+# ENV
+# =========================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 CRYPTO_PAY_API_TOKEN = os.getenv("CRYPTO_PAY_API_TOKEN")
-# =====================================
+
+# =========================
 # OPENAI
-# =====================================
+# =========================
 
-client = OpenAI(
-    api_key=OPENAI_API_KEY
-)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
-# =====================================
+# =========================
 # TELEGRAM
-# =====================================
+# =========================
 
 bot = Bot(token=BOT_TOKEN)
-
 dp = Dispatcher(bot)
 
-# =====================================
-# MEMORY
-# =====================================
+# =========================
+# MEMORY (simple)
+# =========================
 
 user_memory = {}
 
-# =====================================
+# =========================
 # MENU
-# =====================================
+# =========================
 
 def menu():
-
     kb = InlineKeyboardMarkup(row_width=1)
 
-    post_btn = InlineKeyboardButton(
-        text="✍️ Создать пост",
-        callback_data="post"
+    kb.add(
+        InlineKeyboardButton("✍️ Создать пост", callback_data="post"),
+        InlineKeyboardButton("🔥 Viral Hooks", callback_data="hook"),
+        InlineKeyboardButton("🎬 Reels идеи", callback_data="ideas"),
+        InlineKeyboardButton("💎 Premium", callback_data="premium"),
     )
-
-    hook_btn = InlineKeyboardButton(
-        text="🔥 Viral Hook",
-        callback_data="hook"
-    )
-
-    ideas_btn = InlineKeyboardButton(
-        text="🎬 Reels идеи",
-        callback_data="ideas"
-    )
-
-    premium_btn = InlineKeyboardButton(
-        text="💎 Premium",
-        callback_data="premium"
-    )
-
-    kb.add(post_btn)
-    kb.add(hook_btn)
-    kb.add(ideas_btn)
-    kb.add(premium_btn)
 
     return kb
 
-# =====================================
+# =========================
 # START
-# =====================================
+# =========================
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
 
-    text = """
-🚀 CreatorFlow
-
-AI для creators.
-
-Что умеет:
-• Telegram посты
-• Viral hooks
-• Reels идеи
-• Контент планы
-
-Выберите функцию 👇
-"""
-
     await message.answer(
-        text,
+        "🚀 CreatorFlow\n\nAI для creators\n\nВыбери функцию 👇",
         reply_markup=menu()
     )
 
-# =====================================
-# POST
-# =====================================
+# =========================
+# AI FUNCTION
+# =========================
+
+def ask_ai(prompt: str):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+
+# =========================
+# CALLBACKS
+# =========================
 
 @dp.callback_query_handler(text="post")
-async def post(callback: types.CallbackQuery):
+async def post(call: types.CallbackQuery):
 
     prompt = """
-Напиши мощный Telegram пост
-про заработок в интернете.
+Напиши мощный Telegram пост про заработок в интернете.
 
-Сделай:
-• hook
-• эмоции
-• CTA
+Добавь:
+- hook
+- эмоции
+- CTA
 """
 
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
+    await call.message.answer(ask_ai(prompt))
 
-    answer = response.choices[0].message.content
-
-    await callback.message.answer(answer)
-
-# =====================================
-# HOOK
-# =====================================
 
 @dp.callback_query_handler(text="hook")
-async def hook(callback: types.CallbackQuery):
+async def hook(call: types.CallbackQuery):
 
     prompt = """
-Напиши 10 viral hooks
-для TikTok про бизнес.
+Сгенерируй 10 viral hooks для TikTok про бизнес и деньги.
 """
 
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
+    await call.message.answer(ask_ai(prompt))
 
-    answer = response.choices[0].message.content
-
-    await callback.message.answer(answer)
-
-# =====================================
-# IDEAS
-# =====================================
 
 @dp.callback_query_handler(text="ideas")
-async def ideas(callback: types.CallbackQuery):
+async def ideas(call: types.CallbackQuery):
 
     prompt = """
-Придумай 10 viral Reels идей
-для Telegram creators.
+Придумай 10 идей для Reels/TikTok про контент и бизнес.
 """
 
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
+    await call.message.answer(ask_ai(prompt))
 
-    answer = response.choices[0].message.content
-
-    await callback.message.answer(answer)
-
-# =====================================
-# CRYPTO PAYMENT
-# =====================================
+# =========================
+# CRYPTO PAY
+# =========================
 
 def create_invoice():
 
@@ -205,55 +128,44 @@ def create_invoice():
         "description": "CreatorFlow Premium"
     }
 
-    response = requests.post(
-        url,
-        headers=headers,
-        json=data
-    )
+    try:
+        r = requests.post(url, headers=headers, json=data, timeout=10)
+        return r.json()
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
-    return response.json()
-
-# =====================================
+# =========================
 # PREMIUM
-# =====================================
+# =========================
 
 @dp.callback_query_handler(text="premium")
-async def premium(callback: types.CallbackQuery):
+async def premium(call: types.CallbackQuery):
 
     invoice = create_invoice()
 
     if invoice.get("ok"):
-
         pay_url = invoice["result"]["pay_url"]
 
-        text = f"""
-💎 CreatorFlow Premium
+        await call.message.answer(
+            f"""💎 CreatorFlow Premium
 
-Что входит:
-• Безлимит
-• Viral prompts
-• Premium AI
-• Быстрые ответы
+✔ Безлимит AI
+✔ Viral prompts
+✔ Быстрые ответы
 
-Оплата:
+💳 Оплата:
 {pay_url}
 """
-
-        await callback.message.answer(text)
-
-    else:
-
-        await callback.message.answer(
-            "❌ Ошибка оплаты"
         )
+    else:
+        await call.message.answer("❌ Payment error")
 
-# =====================================
+# =========================
 # RUN
-# =====================================
+# =========================
 
 if __name__ == "__main__":
-
-    print("CreatorFlow started")
+    print("🚀 CreatorFlow started")
 
     executor.start_polling(
         dp,
